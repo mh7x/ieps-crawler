@@ -11,3 +11,4 @@ dependencies:
   - flask
   - pyopenssl
   - flask-httpauth
+  - supabase
