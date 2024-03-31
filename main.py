@@ -19,6 +19,7 @@ import sys
 # Define a lock for thread-safe access to shared resources
 lock = threading.Lock()
 
+
 # Function to retrieve and parse HTML content using requests
 def fetch_html(url):
     try:
@@ -60,8 +61,14 @@ def respect_crawl_delay(domain, delay=5):
 
 # Function to canonicalize URLs
 def canonicalize_url(url):
-    # Remove fragment identifier from the URL
-    return hashlib.sha256(url.encode()).hexdigest()
+    parsed_url = urlparse(url)
+    # Scheme and netloc are converted to lowercase
+    scheme = parsed_url.scheme.lower()
+    netloc = parsed_url.netloc.lower()
+    # Path is stripped of trailing slashes and converted to lowercase
+    path = parsed_url.path.rstrip('/').lower()
+    # Query and fragment are ignored
+    return f"{scheme}://{netloc}{path}"
 
 
 # Function to crawl a single URL
@@ -118,7 +125,7 @@ def is_duplicate_url(url):
 # Function to store data in the database
 def store_data(url, canonical_url, html, status_code, site_id):
     page_types = ["HTML", "BINARY", "DUPLICATE", "FRONTIER"]
-    if '.pdf' or '.doc' or '.docx' or '.ppt' or '.pptx' in url:
+    if '.pdf' in url or '.doc' in url or '.docx' in url or '.ppt' in url or '.pptx' in url:
         html_hash = hashlib.sha256(html.encode()).hexdigest()
         cur.execute("INSERT INTO crawldb.page (site_id, page_type_code, url, html_content_hash, html_content, http_status_code, accessed_time) "
                     "VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id",
@@ -136,7 +143,7 @@ def store_data(url, canonical_url, html, status_code, site_id):
     # Check for specific file extensions in the URL and store them in a separate table
     file_extensions = ['.pdf', '.doc', '.docx', '.ppt', '.pptx']
     for ext in file_extensions:
-        if ext in canonical_url.lower():  # Check if the URL contains the file extension
+        if ext in url.lower():  # Check if the URL contains the file extension
             file_type = ext.upper()  # Extract file type
             file_content = None
             if file_type == '.pdf':
@@ -302,10 +309,13 @@ def parse_sitemap_xml(domain):
 # Function to save data into the "site" table
 def save_site_data(domain, robots_content, sitemap_content):
     try:
-        cur.execute("INSERT INTO crawldb.site (domain, robots_content, sitemap_content) VALUES (%s, %s, %s)",
+        cur.execute("INSERT INTO crawldb.site (domain, robots_content, sitemap_content) VALUES (%s, %s, %s) "
+                    "RETURNING id",
                    (domain, robots_content, sitemap_content))
+        id = cur.fetchone()[0]
         conn.commit()
         print(f"Data for {domain} saved successfully.")
+        return id
     except Exception as e:
         print(f"Error saving data for {domain}: {e}")
 
@@ -330,9 +340,9 @@ def crawl():
             rules = parse_robots_rules(robots)
             if is_allowed_by_robots(url, rules):
                 sitemap = parse_sitemap_xml(url)
-                save_site_data(domain, robots, sitemap)
-                cur.execute("SELECT id FROM site WHERE domain = (%s)", domain)
-                site_id = cur.fetchone()[0]
+                site_id = save_site_data(domain, robots, sitemap)
+                cur.execute("SELECT id FROM site WHERE domain = %s", (domain, ))
+                print("site_id: " + str(site_id))
                 crawl_url(url, site_id)
                 visited_urls.add(url)
         else:
