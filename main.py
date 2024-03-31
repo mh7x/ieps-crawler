@@ -1,3 +1,5 @@
+import threading
+from queue import Queue
 import requests
 from bs4 import BeautifulSoup
 import time
@@ -10,17 +12,21 @@ import docx
 import pptx
 from datetime import datetime
 from selenium import webdriver
+import base64
+from selenium.webdriver.firefox.options import Options
+import sys
 
+# Define a lock for thread-safe access to shared resources
+lock = threading.Lock()
 
 # Function to retrieve and parse HTML content using requests
 def fetch_html(url):
     try:
-        options = webdriver.FirefoxOptions()
-        options.headless = True
-        driver = webdriver.Firefox(options)
+        firefox_options = Options()
+        firefox_options.add_argument("-headless")
+        driver = webdriver.Firefox(options=firefox_options)
         driver.get(url)
-        current_url = driver.current_url
-        response = requests.head(current_url, timeout=5)
+        response = requests.head(url, timeout=5)
         status_code = response.status_code
         html = driver.page_source
         driver.quit()
@@ -59,8 +65,13 @@ def canonicalize_url(url):
 
 
 # Function to crawl a single URL
-def crawl_url(url):
-    html, status_code = fetch_html(url)
+def crawl_url(url, site_id):
+    global current_url
+    html, status_code = None, None
+    try:
+        html, status_code = fetch_html(url)
+    except TypeError:
+        print("Cannot unpack html and status code, probably, didn't receive a response")
     if url not in visited_urls:
         if html is not None and status_code is not None:  # Store canonicalized URL
             print("crawling: " + url)
@@ -71,14 +82,15 @@ def crawl_url(url):
                 # Extract links
                 links = extract_links(html, url)
                 for link in links:
-                    frontier.append(link)
+                    # print("link: " + link)
+                    cur.execute("INSERT INTO crawldb.frontier (link) VALUES (%s)", (link, ))
                 # Store data in the database
-                store_data(canonical_url, html, status_code)
+                store_data(url, canonical_url, html, status_code, site_id)
             else:
-                store_data(canonical_url, html, status_code)
+                store_data(url, canonical_url, html, status_code, site_id)
                 cur.execute("SELECT id FROM crawldb.page WHERE url = %s", (canonical_url,))
                 from_id = cur.fetchone()[0]
-                cur.execute("SELECT id FROM crawldb.page WHERE url = %s", (canonicalize_url(frontier[0]),))
+                cur.execute("SELECT id FROM crawldb.page WHERE url = %s", (canonicalize_url(current_url),))
                 to_id = cur.fetchone()[0]
                 cur.execute("INSERT INTO crawldb.link (from_page, to_page) VALUES (%s, %s)",
                             (from_id, to_id))
@@ -96,22 +108,30 @@ def is_duplicate_html(html):
     cur.execute("SELECT * FROM crawldb.page WHERE html_content_hash = %s", (html_hash,))
     return cur.fetchone() is not None
 
+
 def is_duplicate_url(url):
     canonical_url = canonicalize_url(url)
     cur.execute("SELECT * FROM crawldb.page WHERE url = %s", (canonical_url,))
     return cur.fetchone() is not None
 
 
-
 # Function to store data in the database
-def store_data(canonical_url, html, status_code):
+def store_data(url, canonical_url, html, status_code, site_id):
     page_types = ["HTML", "BINARY", "DUPLICATE", "FRONTIER"]
-    html_hash = hashlib.sha256(html.encode()).hexdigest()
-    cur.execute("INSERT INTO crawldb.page (page_type_code, url, html_content_hash, html_content, http_status_code, accessed_time) "
-                    "VALUES (%s, %s, %s, %s, %s, %s) RETURNING id",
-                    (page_types[0], canonical_url, html_hash, html, status_code, datetime.now()))
-    page_id = cur.fetchone()[0]  # Get the inserted page ID
-    conn.commit()
+    if '.pdf' or '.doc' or '.docx' or '.ppt' or '.pptx' in url:
+        html_hash = hashlib.sha256(html.encode()).hexdigest()
+        cur.execute("INSERT INTO crawldb.page (site_id, page_type_code, url, html_content_hash, html_content, http_status_code, accessed_time) "
+                    "VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id",
+                    (site_id, page_types[1], canonical_url, html_hash, html, status_code, datetime.now()))
+        page_id = cur.fetchone()[0]  # Get the inserted page ID
+        conn.commit()
+    else:
+        html_hash = hashlib.sha256(html.encode()).hexdigest()
+        cur.execute("INSERT INTO crawldb.page (site_id, page_type_code, url, html_content_hash, html_content, http_status_code, accessed_time) "
+                    "VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id",
+                    (site_id, page_types[0], canonical_url, html_hash, html, status_code, datetime.now()))
+        page_id = cur.fetchone()[0]  # Get the inserted page ID
+        conn.commit()
 
     # Check for specific file extensions in the URL and store them in a separate table
     file_extensions = ['.pdf', '.doc', '.docx', '.ppt', '.pptx']
@@ -132,7 +152,7 @@ def store_data(canonical_url, html, status_code):
                             (page_id, ext.upper(), file_content))
                 conn.commit()
 
-    images = extract_images(html)
+    images = extract_images(url, html)
     for image_url, image_content in images.items():
         save_image(page_id, image_url, image_content)
 
@@ -181,29 +201,34 @@ def extract_ppt_content(url):
         return None
 
 
-def extract_images(html):
+def extract_images(site_url, html):
     soup = BeautifulSoup(html, 'html.parser')
     images = {}
     for img_tag in soup.find_all('img'):
         img_url = img_tag.get('src')
         if img_url:
-            img_content = fetch_image(img_url)
+            img_content = fetch_image(site_url, img_url)
             if img_content:
                 images[img_url] = img_content
     return images
 
 
-def fetch_image(url):
+def fetch_image(site_url, image_url):
     try:
-        if not urlparse(url).scheme:
-            url = 'https:/' + url  # Assuming HTTPS, you can adjust as needed
-        response = requests.get(url)
-        if response.status_code == 200:
-            return response.content
+        if image_url.startswith('data:image'):
+            # Extract base64 data from the URL
+            base64_data = image_url.split(',')[1]
+            # Decode base64 data
+            image_content = base64.b64decode(base64_data)
+            return image_content
+        elif not urlparse(image_url).scheme:
+            image_url = site_url + image_url  # Assuming HTTPS, you can adjust as needed
+            response = requests.get(image_url)
+            if response.status_code == 200:
+                return response.content
     except Exception as e:
-        print(f"Error fetching image from {url}: {e}")
+        print(f"Error fetching image from {image_url}: {e}")
     return None
-
 
 
 def save_image(page_id, url, content):
@@ -229,6 +254,7 @@ def parse_robots_txt(domain):
     except Exception as e:
         print(f"Error fetching {robots_txt_url}: {e}")
     return ""
+
 
 # Function to parse robots.txt rules
 def parse_robots_rules(robots_txt_content):
@@ -276,21 +302,27 @@ def parse_sitemap_xml(domain):
 # Function to save data into the "site" table
 def save_site_data(domain, robots_content, sitemap_content):
     try:
-        cur.execute("INSERT INTO site (domain, robots_content, sitemap_content) VALUES (%s, %s, %s)",
+        cur.execute("INSERT INTO crawldb.site (domain, robots_content, sitemap_content) VALUES (%s, %s, %s)",
                    (domain, robots_content, sitemap_content))
         conn.commit()
-        # print(f"Data for {domain} saved successfully.")
+        print(f"Data for {domain} saved successfully.")
     except Exception as e:
         print(f"Error saving data for {domain}: {e}")
 
 
-# Worker function for each thread
+# Function to crawl websites
 def crawl():
+    global current_url
     while True:
         url = None
         # Ensure thread safety while accessing shared frontier
-        if frontier:
-            url = frontier[0]
+        cur.execute("DELETE FROM crawldb.frontier "
+                    "WHERE id = (SELECT id FROM crawldb.frontier ORDER BY id LIMIT 1) "
+                    "RETURNING link")
+        row = cur.fetchone()
+        url = row[0]
+        current_url = url
+        print("crawling: ", url)
         if url:
             domain = urlparse(url).netloc
             respect_crawl_delay(domain)
@@ -299,11 +331,10 @@ def crawl():
             if is_allowed_by_robots(url, rules):
                 sitemap = parse_sitemap_xml(url)
                 save_site_data(domain, robots, sitemap)
-                crawl_url(url)
-                frontier.pop(0)
+                cur.execute("SELECT id FROM site WHERE domain = (%s)", domain)
+                site_id = cur.fetchone()[0]
+                crawl_url(url, site_id)
                 visited_urls.add(url)
-            else:
-                frontier.pop(0)
         else:
             break
 
@@ -314,14 +345,6 @@ conn = psycopg2.connect(database="postgres", user="postgres.guoimnempzxzidvwjnem
 
 cur = conn.cursor()
 
-global frontier
-frontier = [
-    'https://gov.si',
-    'https://evem.gov.si',
-    'https://e-uprava.gov.si',
-    'https://e-prostor.gov.si'
-]
-
 global visited_urls
 visited_urls = set()
 
@@ -329,6 +352,51 @@ visited_urls = set()
 global last_access_times
 last_access_times = {}
 
-# Start crawling with multi-threading
-while len(frontier) != 0:
+global current_url
+
+# Number of threads to use
+num_threads = 5  # Adjust as needed
+
+# Queue to hold URLs to be processed
+url_queue = Queue()
+
+
+# Worker function for each thread
+def worker():
+    while True:
+        url = url_queue.get()
+        if url is None:
+            break
+        crawl_url(url)
+        url_queue.task_done()
+
+
+# Create and start threads
+threads = []
+for _ in range(num_threads):
+    t = threading.Thread(target=worker)
+    t.start()
+    threads.append(t)
+
+# Add URLs to the queue
+# Example: url_queue.put('https://example.com')
+# Add your URLs accordingly
+
+# Wait for all threads to finish
+url_queue.join()
+
+# Stop worker threads
+for _ in range(num_threads):
+    url_queue.put(None)
+
+# Join all threads
+for t in threads:
+    t.join()
+
+
+if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print("Usage: python3 script.py <num_threads>")
+        sys.exit(1)
+    num_threads = int(sys.argv[1])
     crawl()
