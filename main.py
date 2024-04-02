@@ -92,7 +92,7 @@ def crawl_url(url, site_id):
             # Store data in the database
             store_data(url, canonical_url, html, status_code, site_id)
         else:
-            cur.execute("SELECT id FROM page WHERE url = %s", (from_url,))
+            cur.execute("SELECT id FROM page WHERE url = %s", (canonicalize_url(from_url),))
             from_id = cur.fetchone()[0]
             cur.execute("SELECT id FROM page WHERE url = %s", (canonicalize_url(current_url),))
             to_id = cur.fetchone()[0]
