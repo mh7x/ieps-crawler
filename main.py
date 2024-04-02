@@ -339,7 +339,7 @@ def crawl():
         except TypeError:
             print("Caught a TypeError: 'NoneType' object is not subscriptable")
         except Exception as e:
-            print(f"Unknown error: {e}")
+            print("Unknown error: " + e)
 
 
 # Initialize database connection
