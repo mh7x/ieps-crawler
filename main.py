@@ -83,22 +83,23 @@ def crawl_url(url, site_id):
         canonical_url = url
         print("canonicalized: " + canonical_url)
         # Check for duplicate content
-        if (not is_duplicate_html(html)) and (not is_duplicate_url(url)):
-            # Extract links
-            links = extract_links(html, url)
-            for link in links:
-                # print("link: " + link)
-                cur.execute("INSERT INTO frontier (link, from_link) VALUES (%s, %s)", (link, current_url))
-            # Store data in the database
-            store_data(url, canonical_url, html, status_code, site_id)
-        else:
-            cur.execute("SELECT id FROM page WHERE url = %s", (from_url,))
-            from_id = cur.fetchone()[0]
-            cur.execute("SELECT id FROM page WHERE url = %s", (current_url,))
-            to_id = cur.fetchone()[0]
-            cur.execute("INSERT INTO link (from_page, to_page) VALUES (%s, %s)",
+        if not is_duplicate_html(html):
+            if not is_duplicate_url(url):
+                # Extract links
+                links = extract_links(html, url)
+                for link in links:
+                    # print("link: " + link)
+                    cur.execute("INSERT INTO frontier (link, from_link) VALUES (%s, %s)", (link, current_url))
+                    # Store data in the database
+                store_data(url, canonical_url, html, status_code, site_id)
+            else:
+                cur.execute("SELECT id FROM page WHERE url = %s", (from_url,))
+                from_id = cur.fetchone()[0]
+                cur.execute("SELECT id FROM page WHERE url = %s", (current_url,))
+                to_id = cur.fetchone()[0]
+                cur.execute("INSERT INTO link (from_page, to_page) VALUES (%s, %s)",
                         (from_id, to_id))
-            conn.commit()
+                conn.commit()
     else:
         pass
 
