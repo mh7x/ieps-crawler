@@ -80,7 +80,7 @@ def crawl_url(url, site_id):
         print("Cannot unpack html and status code, probably, didn't receive a response")
     if html is not None and status_code is not None:  # Store canonicalized URL
         print("crawling: " + url)
-        canonical_url = canonicalize_url(url)
+        canonical_url = url
         print("canonicalized: " + canonical_url)
         # Check for duplicate content
         if (not is_duplicate_html(html)) and (not is_duplicate_url(url)):
@@ -112,7 +112,7 @@ def is_duplicate_html(html):
 
 
 def is_duplicate_url(url):
-    canonical_url = canonicalize_url(url)
+    canonical_url = url
     cur.execute("SELECT * FROM page WHERE url = %s", (canonical_url,))
     return cur.fetchone() is not None
 
