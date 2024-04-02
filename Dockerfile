@@ -8,7 +8,7 @@ WORKDIR /usr/src/app
 COPY . .
 
 # Install any needed packages specified in requirements.txt
-RUN pip install --no-cache-dir requests beautifulsoup4 psycopg2-binary PyPDF2 python-docx python-pptx selenium urllib3
+RUN pip install --no-cache-dir requests beautifulsoup4 psycopg2 PyPDF2 python-docx python-pptx selenium urllib3
 
 # Make port 80 available to the world outside this container
 EXPOSE 80
