@@ -93,6 +93,7 @@ def crawl_url(url, site_id):
                     # Store data in the database
                 store_data(url, canonical_url, html, status_code, site_id)
             else:
+                print("from: " + from_url + ",  current: " + current_url)
                 cur.execute("SELECT id FROM page WHERE url = %s", (from_url,))
                 from_id = cur.fetchone()[0]
                 cur.execute("SELECT id FROM page WHERE url = %s", (current_url,))
@@ -326,11 +327,11 @@ def crawl():
                     "WHERE id = (SELECT id FROM frontier ORDER BY id LIMIT 1) "
                     "RETURNING link, from_link")
         row = cur.fetchone()
-        url = row[0]
-        current_url = row[0]
-        from_url = row[1]
-        print("crawling: ", url)
-        if url:
+        if row[0]:
+            url = row[0]
+            current_url = row[0]
+            from_url = row[1]
+            print("crawling: ", url)
             domain = urlparse(url).netloc
             respect_crawl_delay(domain)
             robots = parse_robots_txt(url)
