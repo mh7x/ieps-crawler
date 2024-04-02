@@ -313,7 +313,7 @@ def save_site_data(domain, robots_content, sitemap_content):
 
 # Function to crawl websites
 def crawl():
-    global current_url
+    global current_url, from_url
     while True:
         url = None
         # Ensure thread safety while accessing shared frontier
