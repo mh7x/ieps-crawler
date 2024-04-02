@@ -79,9 +79,7 @@ def crawl_url(url, site_id):
     except TypeError:
         print("Cannot unpack html and status code, probably, didn't receive a response")
     if html is not None and status_code is not None:  # Store canonicalized URL
-        print("crawling: " + url)
         canonical_url = url
-        print("canonicalized: " + canonical_url)
         # Check for duplicate content
         if not is_duplicate_html(html):
             if not is_duplicate_url(url):
@@ -93,7 +91,6 @@ def crawl_url(url, site_id):
                     # Store data in the database
                 store_data(url, canonical_url, html, status_code, site_id)
             else:
-                print("from: " + from_url + ",  current: " + current_url)
                 cur.execute("SELECT id FROM page WHERE url = %s", (from_url,))
                 from_id = cur.fetchone()[0]
                 cur.execute("SELECT id FROM page WHERE url = %s", (current_url,))
@@ -311,7 +308,6 @@ def save_site_data(domain, robots_content, sitemap_content):
                    (domain, robots_content, sitemap_content))
         id = cur.fetchone()[0]
         conn.commit()
-        print(f"Data for {domain} saved successfully.")
         return id
     except Exception as e:
         print(f"Error saving data for {domain}: {e}")
@@ -331,7 +327,6 @@ def crawl():
             url = row[0]
             current_url = row[0]
             from_url = row[1]
-            print("crawling: ", url)
             domain = urlparse(url).netloc
             respect_crawl_delay(domain)
             robots = parse_robots_txt(url)
@@ -340,10 +335,11 @@ def crawl():
                 sitemap = parse_sitemap_xml(url)
                 site_id = save_site_data(domain, robots, sitemap)
                 cur.execute("SELECT id FROM site WHERE domain = %s", (domain, ))
-                print("site_id: " + str(site_id))
                 crawl_url(url, site_id)
         except TypeError:
             print("Caught a TypeError: 'NoneType' object is not subscriptable")
+        except Exception as e:
+            print(f"Unknown error: {e}")
 
 
 # Initialize database connection
