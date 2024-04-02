@@ -327,7 +327,7 @@ def crawl():
                     "WHERE id = (SELECT id FROM frontier ORDER BY id LIMIT 1) "
                     "RETURNING link, from_link")
         row = cur.fetchone()
-        if row[0]:
+        try:
             url = row[0]
             current_url = row[0]
             from_url = row[1]
@@ -342,8 +342,8 @@ def crawl():
                 cur.execute("SELECT id FROM site WHERE domain = %s", (domain, ))
                 print("site_id: " + str(site_id))
                 crawl_url(url, site_id)
-        else:
-            break
+        except TypeError:
+            print("Caught a TypeError: 'NoneType' object is not subscriptable")
 
 
 # Initialize database connection
