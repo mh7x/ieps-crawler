@@ -1,21 +1,17 @@
-# Use an official Miniconda image as a base
-FROM continuumio/miniconda3
+# Use an official Python runtime as a parent image
+FROM python:3.9-slim
 
-# Set up working directory
-WORKDIR /app
+# Set the working directory in the container
+WORKDIR /usr/src/app
 
-# Copy environment file
-COPY environment.yml /app/environment.yml
+# Copy the current directory contents into the container at /usr/src/app
+COPY . .
 
-# Create and activate Conda environment
-RUN conda env create -f environment.yml
-SHELL ["conda", "run", "-n", "wier", "/bin/bash", "-c"]
+# Install any needed packages specified in requirements.txt
+RUN pip install --no-cache-dir requests beautifulsoup4 psycopg2-binary PyPDF2 python-docx python-pptx selenium urllib3
 
-# Copy the rest of the application code into the container
-COPY . /app
+# Make port 80 available to the world outside this container
+EXPOSE 80
 
-# Expose any ports your application listens on
-EXPOSE 8888
-
-# Command to run PostgreSQL and Jupyter notebook
-CMD conda run -n wier jupyter notebook --ip='0.0.0.0' --port=8888 --no-browser --allow-root --NotebookApp.token="" --NotebookApp.password=""
+# Run crawler.py when the container launches
+CMD ["python", "./main.py"]

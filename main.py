@@ -14,7 +14,6 @@ from datetime import datetime
 from selenium import webdriver
 import base64
 from selenium.webdriver.firefox.options import Options
-import sys
 
 # Define a lock for thread-safe access to shared resources
 lock = threading.Lock()
@@ -79,31 +78,27 @@ def crawl_url(url, site_id):
         html, status_code = fetch_html(url)
     except TypeError:
         print("Cannot unpack html and status code, probably, didn't receive a response")
-    if url not in visited_urls:
-        if html is not None and status_code is not None:  # Store canonicalized URL
-            print("crawling: " + url)
-            canonical_url = canonicalize_url(url)
-            print("canonicalized: " + canonical_url)
-            # Check for duplicate content
-            if (not is_duplicate_html(html)) and (not is_duplicate_url(url)):
-                # Extract links
-                links = extract_links(html, url)
-                for link in links:
-                    # print("link: " + link)
-                    cur.execute("INSERT INTO frontier (link) VALUES (%s)", (link, ))
-                # Store data in the database
-                store_data(url, canonical_url, html, status_code, site_id)
-            else:
-                store_data(url, canonical_url, html, status_code, site_id)
-                cur.execute("SELECT id FROM page WHERE url = %s", (canonical_url,))
-                from_id = cur.fetchone()[0]
-                cur.execute("SELECT id FROM page WHERE url = %s", (canonicalize_url(current_url),))
-                to_id = cur.fetchone()[0]
-                cur.execute("INSERT INTO link (from_page, to_page) VALUES (%s, %s)",
-                            (from_id, to_id))
-                conn.commit()
+    if html is not None and status_code is not None:  # Store canonicalized URL
+        print("crawling: " + url)
+        canonical_url = canonicalize_url(url)
+        print("canonicalized: " + canonical_url)
+        # Check for duplicate content
+        if (not is_duplicate_html(html)) and (not is_duplicate_url(url)):
+            # Extract links
+            links = extract_links(html, url)
+            for link in links:
+                # print("link: " + link)
+                cur.execute("INSERT INTO frontier (link) VALUES (%s)", (link, ))
+            # Store data in the database
+            store_data(url, canonical_url, html, status_code, site_id)
         else:
-            pass
+            cur.execute("SELECT id FROM page WHERE url = %s", (canonical_url,))
+            from_id = cur.fetchone()[0]
+            cur.execute("SELECT id FROM page WHERE url = %s", (canonicalize_url(current_url),))
+            to_id = cur.fetchone()[0]
+            cur.execute("INSERT INTO link (from_page, to_page) VALUES (%s, %s)",
+                        (from_id, to_id))
+            conn.commit()
     else:
         pass
 
@@ -246,7 +241,7 @@ def save_image(page_id, url, content):
                     "VALUES (%s, %s, %s, %s, %s)",
                     (page_id, filename, content_type, content, datetime.now()))
         conn.commit()
-        print(f"Image saved: {filename}")
+        # print(f"Image saved: {filename}")
     except Exception as e:
         print(f"Error saving image {filename}: {e}")
 
@@ -344,7 +339,6 @@ def crawl():
                 cur.execute("SELECT id FROM site WHERE domain = %s", (domain, ))
                 print("site_id: " + str(site_id))
                 crawl_url(url, site_id)
-                visited_urls.add(url)
         else:
             break
 
@@ -354,9 +348,6 @@ conn = psycopg2.connect(database="postgres", user="postgres.guoimnempzxzidvwjnem
                         host="aws-0-eu-west-2.pooler.supabase.com", port="5432")
 
 cur = conn.cursor()
-
-global visited_urls
-visited_urls = set()
 
 # Global variable to store last access times for domains
 global last_access_times
@@ -405,6 +396,6 @@ for t in threads:
 
 
 if __name__ == "__main__":
-    n_threads = input("Please input number of threads: ")
-    num_threads = int(n_threads)
+    # n_threads = input("Please input number of threads: ")
+    num_threads = int(1)
     crawl()
