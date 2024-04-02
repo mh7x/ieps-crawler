@@ -88,16 +88,12 @@ def crawl_url(url, site_id):
             links = extract_links(html, url)
             for link in links:
                 # print("link: " + link)
-                cur.execute("INSERT INTO frontier (link) VALUES (%s)", (link, ))
+                cur.execute("INSERT INTO frontier (link, from_link) VALUES (%s, %s)", (link, current_url))
             # Store data in the database
             store_data(url, canonical_url, html, status_code, site_id)
         else:
-            cur.execute("SELECT id FROM page WHERE url = %s", (canonical_url,))
-            from_id = cur.fetchone()[0]
-            cur.execute("SELECT id FROM page WHERE url = %s", (canonicalize_url(current_url),))
-            to_id = cur.fetchone()[0]
             cur.execute("INSERT INTO link (from_page, to_page) VALUES (%s, %s)",
-                        (from_id, to_id))
+                        (from_url, current_url))
             conn.commit()
     else:
         pass
@@ -323,10 +319,11 @@ def crawl():
         # Ensure thread safety while accessing shared frontier
         cur.execute("DELETE FROM frontier "
                     "WHERE id = (SELECT id FROM frontier ORDER BY id LIMIT 1) "
-                    "RETURNING link")
+                    "RETURNING link, from_link")
         row = cur.fetchone()
         url = row[0]
-        current_url = url
+        current_url = row[0]
+        from_url = row[1]
         print("crawling: ", url)
         if url:
             domain = urlparse(url).netloc
@@ -354,6 +351,7 @@ global last_access_times
 last_access_times = {}
 
 global current_url
+global from_url
 
 # Number of threads to use
 num_threads = 5  # Adjust as needed
