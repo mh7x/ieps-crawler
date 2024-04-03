@@ -300,12 +300,21 @@ def parse_sitemap_xml(domain):
     return ""
 
 
-# Function to save data into the "site" table
 def save_site_data(domain, robots_content, sitemap_content):
     try:
+        # Check if the record already exists
+        cur.execute("SELECT id FROM site WHERE domain = %s AND robots_content = %s AND sitemap_content = %s",
+                    (domain, robots_content, sitemap_content))
+        existing_record = cur.fetchone()
+
+        if existing_record:
+            print(f"Record for {domain} already exists in the database.")
+            return existing_record[0]  # Return the existing record's ID
+
+        # Insert the record as it doesn't exist
         cur.execute("INSERT INTO site (domain, robots_content, sitemap_content) VALUES (%s, %s, %s) "
                     "RETURNING id",
-                   (domain, robots_content, sitemap_content))
+                    (domain, robots_content, sitemap_content))
         id = cur.fetchone()[0]
         conn.commit()
         return id
