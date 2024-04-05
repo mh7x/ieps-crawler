@@ -405,6 +405,5 @@ for t in threads:
 
 
 if __name__ == "__main__":
-    # n_threads = input("Please input number of threads: ")
-    num_threads = int(1)
+    n_threads = input("Please input number of threads: ")
     crawl()

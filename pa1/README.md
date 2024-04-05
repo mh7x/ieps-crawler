@@ -6,6 +6,10 @@ There are two ways to run this crawler, you may run it using python or run it us
 ## Run the crawler with python
 
 To run the crawler with python you must first install all needed dependencies with pip.
+```python
+pip install requests bs4 urllib3 psycopg2 PyPDF2 python-docx python-pptx selenium
+```
+
 Then simply run it using
 ```python
 python main.py
