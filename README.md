@@ -1,14 +1,22 @@
 # Crawler for IEPS project
 
-A brief description of what this project does and who it's for
+This is the web crawler made by Nejc Rihter, Tomaž Dagaj and Tadej Lenart for the IEPS course of the BMA program at FRI.
+There are two ways to run this crawler, you may run it using python or run it using docker.
 
-## Docker setup
+## Run the crawler with python
 
-To build and run Docker container, run:
-
-```bash
-  docker build -t webcrawler .
-  docker run -p 8888:8888 -v ${PWD}/:/app --name webcrawler-container -d webcrawler
+To run the crawler with python you must first install all needed dependencies with pip.
+Then simply run it using
+```python
+python main.py
 ```
+You will then be prompted to input the number of threads. And the crawler will run.
 
-then open localhost:8888 in your browser to access Jupyter.
+## Run the crawler with docker
+To run the crawler using docker issue the following commands.
+```bash
+docker pull nejcrihter/spider:maybe12
+docker run -d --restart always nejcrihter/spider:maybe12
+````
+Before this don't forget to set the number of theads in the code to the desired number of threads.
+This command will ensure the crawler restarts should anything happen.
