@@ -19,7 +19,6 @@ Install the required packages using pip:
 
 ```bash
 pip install lxml beautifulsoup4 scikit-learn
-
 ```
 
 ## Running the Code

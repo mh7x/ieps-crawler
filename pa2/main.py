@@ -2,8 +2,6 @@ import re
 from lxml import etree
 from bs4 import BeautifulSoup
 from difflib import SequenceMatcher
-from sklearn.cluster import AgglomerativeClustering
-import numpy as np
 
 # Regex extractions
 def extract_rtv_regex(html_file):
@@ -134,10 +132,10 @@ def extract_kosarka_regex(html_file):
     print(data)
 
 
-# extract_rtv_regex(open("./pa2/webpages/rtvslo.si/rtvslo-2.html", "r"))
-# extract_overstock_regex(open("./pa2/webpages/overstock.com/jewelry02.html", "r", encoding="latin-1"))
-# extract_24ur_regex(open("./pa2/webpages/24ur.com/novica2.html", "r"))
-# extract_kosarka_regex(open("./pa2/webpages/kosarka.si/novica2.html", "r"))
+# extract_rtv_regex(open("./webpages/rtvslo.si/rtvslo-2.html", "r", encoding="utf-8"))
+# extract_overstock_regex(open("./webpages/overstock.com/jewelry02.html", "r", encoding="latin-1"))
+# extract_24ur_regex(open("./webpages/24ur.com/novica2.html", "r", encoding="utf-8"))
+# extract_kosarka_regex(open("./webpages/kosarka.si/novica2.html", "r", encoding="utf-8"))
 
 
 # xPath extarctions
@@ -239,126 +237,83 @@ def extract_kosarka_xpath(html_file):
     print(data)
 
 
-# extract_rtv_xpath(open("./pa2/webpages/rtvslo.si/rtvslo-1.html", "r"))
-# extract_overstock_xpath(open("./pa2/webpages/overstock.com/jewelry01.html", "r", encoding="latin-1"))
-# extract_24ur_xpath(open("./pa2/webpages/24ur.com/novica2.html", "r"))
-# extract_kosarka_xpath(open("./pa2/webpages/kosarka.si/novica2.html", "r"))
+# extract_rtv_xpath(open("./webpages/rtvslo.si/rtvslo-1.html", "r", encoding="utf-8"))
+# extract_overstock_xpath(open("./webpages/overstock.com/jewelry01.html", "r", encoding="latin-1"))
+# extract_24ur_xpath(open("./webpages/24ur.com/novica2.html", "r", encoding="utf-8"))
+# extract_kosarka_xpath(open("./webpages/kosarka.si/novica2.html", "r", encoding="utf-8"))
 
 
 # PART 3
-def parse_html(file_path, encoding):
-    with open(file_path, "r", encoding=encoding) as f:
-        soup = BeautifulSoup(f, 'html.parser')
+def parse_html(file_name, encoding):
+    # Extract text from HTML file by removing tags
+    with open(file_name, 'r', encoding=encoding) as file:
+        html_content = file.read()
+        return html_content
 
-    # Extract relevant HTML block elements (e.g., <p>, <div>, <h1>, <title>)
-    layout_blocks = [tag.name for tag in soup.find_all(['p', 'div', 'h1', 'title'])]
+
+def extract_layout_blocks(html_content):
+    # Extract layout blocks from HTML content
+    soup = BeautifulSoup(html_content, 'html.parser')
+    # Consider relevant elements such as div, p, title, etc.
+    relevant_tags = ['div', 'p', 'title', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6']
+    layout_blocks = []
+    for tag in relevant_tags:
+        elements = soup.find_all(tag)
+        layout_blocks.extend([(tag, element.get_text()) for element in elements])
     return layout_blocks
 
 
-def compute_similarity(page1_blocks, page2_blocks):
-    # Calculate the similarity between two pages based on the edit distance of their layout block sequences
-    return SequenceMatcher(None, page1_blocks, page2_blocks).ratio()
 
+def compute_similarity(block1, block2):
+    # Compute similarity between two layout blocks using edit distance
+    # Here, we use difflib's SequenceMatcher to compute similarity ratio
+    return SequenceMatcher(None, block1, block2).ratio()
 
-def pairwise_similarity(layout_blocks):
-    n = len(layout_blocks)
-    similarities = np.zeros((n, n))
-    for i in range(n):
-        for j in range(n):
-            similarities[i, j] = compute_similarity(layout_blocks[i], layout_blocks[j])
-    return similarities
-
-
-def cluster_pages(similarities, threshold):
-    # Group pages with similar layouts into clusters using hierarchical clustering
-    clustering = AgglomerativeClustering(n_clusters=None, distance_threshold=threshold, linkage='average').fit(similarities)
-    return clustering.labels_
-
-
-def generate_layout_patterns(clusters, pages):
-    layout_patterns = []
-    for cluster_id in set(clusters):
-        cluster_pages = [page for i, page in enumerate(pages) if clusters[i] == cluster_id]
-        # Extract common layout blocks shared by the pages in the cluster
-        common_blocks = set.intersection(*map(set, cluster_pages))
-        layout_patterns.append(common_blocks)
-    return layout_patterns
-
-
-def remove_static_parts(layout_patterns):
-    # Identify and remove static parts like banners and navigation links from the layout patterns
-    # Use a threshold-based approach to determine which parts to remove
-    filtered_patterns = []
-    for pattern in layout_patterns:
-        # Implement your logic to filter out static parts based on thresholds
-        filtered_patterns.append(pattern)
-    return filtered_patterns
-
-
-def discover_title_and_main_text(layout_patterns):
-    titles = []
-    main_texts = []
-    for pattern in layout_patterns:
-        # Implement logic to identify title and main text blocks
-        # For example, find the block with the most common words or the largest block as title
-        title = max(pattern, key=len)
-        main_text = max(pattern, key=lambda x: len(x) if x != title else 0)
-        titles.append(title)
-        main_texts.append(main_text)
-    return titles, main_texts
-
-
-def extract_texts(html_content, layout_patterns):
-    extracted_texts = []
-    for pattern in layout_patterns:
-        title_block = None
-        main_text_blocks = []
-
-        # Discover title block
-        for block in pattern:
-            if block.startswith('h') or block == 'title':
-                title_block = block
+def cluster_pages(pages):
+    clusters = []
+    for page in pages:
+        found_cluster = False
+        for cluster in clusters:
+            # Compute similarity with pages in the cluster
+            similarities = [compute_similarity(page, p) for p in cluster]
+            avg_similarity = sum(similarities) / len(similarities)
+            if avg_similarity > 0.7:  # Adjust threshold as needed
+                cluster.append(page)
+                found_cluster = True
                 break
-
-        # Discover main text blocks
-        for block in pattern:
-            if block != title_block:
-                main_text_blocks.append(block)
-
-        extracted_texts.append({'main_text': main_text_blocks, 'title': title_block})
-
-    return extracted_texts
+        if not found_cluster:
+            clusters.append([page])
+    return clusters
 
 
-def webstemmer(filename, encoding):
-    # Step 1: Parse HTML Pages
-    layout_blocks = parse_html(filename, encoding)
-
-    # Step 2: Compute Similarity
-    similarities = pairwise_similarity(layout_blocks)
-
-    # Step 3: Clustering
-    threshold = 0.5  # Adjust the threshold as needed
-    clusters = cluster_pages(similarities, threshold)
-
-    # Step 4: Generate Layout Patterns
-    layout_patterns = generate_layout_patterns(clusters, layout_blocks)
-
-    # Step 5: Remove Banners and Navigation Links
-    layout_patterns = remove_static_parts(layout_patterns)
-
-    # Step 6: Discover Title and Main Text
-    titles, main_texts = discover_title_and_main_text(layout_patterns)
-
-    # Step 7: Extract Texts
-    extracted_texts = extract_texts(filename, layout_patterns)
-
-    # Output extracted texts
-    for text in extracted_texts:
-        print(text)
+def generate_wrapper(cluster):
+    # Generate a human-readable wrapper based on a cluster of layout blocks
+    wrapper = {}
+    for i, (tag, block) in enumerate(cluster, start=1):
+        wrapper[f'{tag}'] = {
+            'Text': block,
+        }
+    return wrapper
 
 
-# webstemmer("./webpages/rtvslo.si/rtvslo-2.html", "utf-8")
-# webstemmer("./webpages/overstock.com/jewelry02.html", "latin-1")
-# webstemmer("./webpages/24ur.com/novica2.html", "utf-8")
-# webstemmer("./webpages/kosarka.si/novica2.html", "utf-8")
+def webstemmer(file1, encoding1, file2, encoding2):
+    # Parse HTML files and extract layout blocks
+    text_page1 = parse_html(file1, encoding1)
+    text_page2 = parse_html(file2, encoding2)
+    blocks_page1 = extract_layout_blocks(text_page1)
+    blocks_page2 = extract_layout_blocks(text_page2)
+
+    # Combine text and layout blocks for clustering
+    pages = blocks_page1 + blocks_page2
+
+    # Cluster pages based on layout structure
+    clusters = cluster_pages(pages)
+
+    # Print clusters
+    for i, cluster in enumerate(clusters):
+        # Generate wrapper for the cluster
+        wrapper = generate_wrapper(cluster)
+        print(f"Wrapper {i}:")
+        print(wrapper)
+
+webstemmer("./webpages/rtvslo.si/rtvslo-1.html", "utf-8", "./webpages/rtvslo.si/rtvslo-2.html", "utf-8")
