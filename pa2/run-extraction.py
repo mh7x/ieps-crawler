@@ -1,7 +1,7 @@
 import sys
 from main import extract_rtv_regex, extract_overstock_regex, extract_24ur_regex, extract_kosarka_regex
 from main import extract_rtv_xpath, extract_overstock_xpath, extract_24ur_xpath, extract_kosarka_xpath
-from main import webstemmer_pair
+from main import webstemmer
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
@@ -24,7 +24,7 @@ if __name__ == "__main__":
         extract_24ur_xpath(open("./webpages/24ur.com/novica2.html", "r", encoding="utf-8"))
         extract_kosarka_xpath(open("./webpages/kosarka.si/novica2.html", "r", encoding="utf-8"))
     elif algorithm_type == 'C':
-        webstemmer_pair("./webpages/rtvslo.si/rtvslo-1.html", "utf-8", "./webpages/rtvslo.si/rtvslo-2.html", "utf-8")
-        webstemmer_pair("./webpages/overstock.com/jewelry01.html", "latin-1", "./webpages/overstock.com/jewelry02.html", "latin-1")
-        webstemmer_pair("./webpages/24ur.com/novica1.html", "utf-8", "./webpages/24ur.com/novica2.html", "utf-8")
-        webstemmer_pair("./webpages/kosarka.si/novica1.html", "utf-8", "./webpages/kosarka.si/novica2.html", "utf-8")
+        webstemmer("./webpages/rtvslo.si/rtvslo-1.html", "utf-8", "./webpages/rtvslo.si/rtvslo-2.html", "utf-8")
+        webstemmer("./webpages/overstock.com/jewelry01.html", "latin-1", "./webpages/overstock.com/jewelry02.html", "latin-1")
+        webstemmer("./webpages/24ur.com/novica1.html", "utf-8", "./webpages/24ur.com/novica2.html", "utf-8")
+        webstemmer("./webpages/kosarka.si/novica1.html", "utf-8", "./webpages/kosarka.si/novica2.html", "utf-8")
