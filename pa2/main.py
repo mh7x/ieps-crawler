@@ -1,7 +1,8 @@
 import re
 from lxml import etree
-from bs4 import BeautifulSoup
 from difflib import SequenceMatcher
+from bs4 import BeautifulSoup
+import json
 
 # Regex extractions
 def extract_rtv_regex(html_file):
@@ -23,7 +24,7 @@ def extract_rtv_regex(html_file):
     lead_match = re.search(re.compile(r'(?<=\<p class="lead"\>).*?(?=\<\/p\>)', re.DOTALL), html_content)    
     lead = lead_match.group(0).strip()
 
-    body_paragraphs = re.findall(r'<p class="Body">(.*?)</p>', html_content, re.DOTALL)
+    body_paragraphs = re.findall('<p(?: class="Body")?>(.*?)</p>', html_content, re.DOTALL)
     content = ""
     for paragraph in body_paragraphs:
         content += paragraph.strip()
@@ -38,7 +39,7 @@ def extract_rtv_regex(html_file):
         "Content": content,
     }
 
-    print(data)
+    print(json.dumps(data, indent=4))
 
 
 def extract_overstock_regex(html_file):
@@ -60,7 +61,7 @@ def extract_overstock_regex(html_file):
         "Contents": content_matches,
     }
 
-    print(data)
+    print(json.dumps(data, indent=4))
 
 
 def extract_24ur_regex(html_file):
@@ -76,11 +77,12 @@ def extract_24ur_regex(html_file):
     published_time = published_time_match.group(1).strip()
 
     subtitle_match = re.search(re.compile(r'<div class="summary mb-16 px-0 md:px-article-summary pb-16 md:pb-24 border-b border-black/10 dark:border-white/10">(.*?)</div>', re.DOTALL), html_content)
+
     subtitle = subtitle_match.group(1).strip()
     subtitle = re.sub(r'<p.*?>(.*?)', '', subtitle, flags=re.DOTALL)
     subtitle = " ".join(subtitle.split())
 
-    body_paragraphs = re.findall(r'<p>(.*?)<p>', html_content, re.DOTALL)
+    body_paragraphs = re.findall(r'<p>(.*?)(?=<p|$)', html_content, re.DOTALL)
     content = ""
     for paragraph in body_paragraphs:
         content += paragraph.strip()
@@ -95,7 +97,7 @@ def extract_24ur_regex(html_file):
         "Content": content,
     }
 
-    print(data)
+    print(json.dumps(data, indent=4))
 
 
 def extract_kosarka_regex(html_file):
@@ -129,13 +131,13 @@ def extract_kosarka_regex(html_file):
         "Content": content,
     }
 
-    print(data)
+    print(json.dumps(data, indent=4))
 
 
 # extract_rtv_regex(open("./webpages/rtvslo.si/rtvslo-2.html", "r", encoding="utf-8"))
-# extract_overstock_regex(open("./webpages/overstock.com/jewelry02.html", "r", encoding="latin-1"))
+# extract_overstock_regex(open("./webpages/overstock.com/jewelry01.html", "r", encoding="latin-1"))
 # extract_24ur_regex(open("./webpages/24ur.com/novica2.html", "r", encoding="utf-8"))
-# extract_kosarka_regex(open("./webpages/kosarka.si/novica2.html", "r", encoding="utf-8"))
+# extract_kosarka_regex(open("./webpages/kosarka.si/novica1.html", "r", encoding="utf-8"))
 
 
 # xPath extarctions
@@ -149,7 +151,7 @@ def extract_rtv_xpath(html_file):
     subtitle = root.xpath('//div[@class="subtitle"]/text()')
     lead = root.xpath('//p[@class="lead"]/text()')
     lead = ''.join(lead)
-    content = root.xpath('//p[@class="Body"]/text()')
+    content = root.xpath('//p[@class="Body" or not(@*)]/text()')
     content = ''.join(content)
 
     data = {
@@ -161,7 +163,7 @@ def extract_rtv_xpath(html_file):
         "Content": " ".join(content.split()),
     }
 
-    print(data)
+    print(json.dumps(data, indent=4))
 
 
 def extract_overstock_xpath(html_file):
@@ -189,7 +191,7 @@ def extract_overstock_xpath(html_file):
         "Contents": content_matches,
     }
 
-    print(data)
+    print(json.dumps(data, indent=4))
 
 
 def extract_24ur_xpath(html_file):
@@ -200,7 +202,7 @@ def extract_24ur_xpath(html_file):
     author = root.xpath('//div[@class="text-14 font-semibold text-black/80 dark:text-white/80"]/text()')
     published_time = root.xpath('//p[@class="text-black/60 dark:text-white/60 mb-16 leading-caption"]/text()')
     subtitle = root.xpath('normalize-space(//p[@class="text-article-summary font-semibold leading-tight text-black dark:text-white"])')
-    content = root.xpath('normalize-space(string(//div[@class="contextual"]))')
+    content = root.xpath('normalize-space(string(//div[@class="contextual"]//p))')
 
     data = {
         "Title": title[0].strip(),
@@ -210,7 +212,7 @@ def extract_24ur_xpath(html_file):
         "Content": content
     }
 
-    print(data)
+    print(json.dumps(data, indent=4))
 
 
 def extract_kosarka_xpath(html_file):
@@ -231,89 +233,84 @@ def extract_kosarka_xpath(html_file):
         "Author": author[0],
         "Published time": date,
         "Category": category[0],
-        "Content": " ".join(content.split())
+        "Content": content
     }
 
-    print(data)
+    print(json.dumps(data, indent=4))
 
 
-# extract_rtv_xpath(open("./webpages/rtvslo.si/rtvslo-1.html", "r", encoding="utf-8"))
-# extract_overstock_xpath(open("./webpages/overstock.com/jewelry01.html", "r", encoding="latin-1"))
+# extract_rtv_xpath(open("./webpages/rtvslo.si/rtvslo-2.html", "r", encoding="utf-8"))
+# extract_overstock_xpath(open("./webpages/overstock.com/jewelry02.html", "r", encoding="latin-1"))
 # extract_24ur_xpath(open("./webpages/24ur.com/novica2.html", "r", encoding="utf-8"))
-# extract_kosarka_xpath(open("./webpages/kosarka.si/novica2.html", "r", encoding="utf-8"))
+# extract_kosarka_xpath(open("./webpages/kosarka.si/novica1.html", "r", encoding="utf-8"))
 
 
 # PART 3
-def parse_html(file_name, encoding):
-    # Extract text from HTML file by removing tags
+def parse_html(file_name, encoding='utf-8'):
     with open(file_name, 'r', encoding=encoding) as file:
-        html_content = file.read()
-        return html_content
-
+        return file.read()
 
 def extract_layout_blocks(html_content):
-    # Extract layout blocks from HTML content
     soup = BeautifulSoup(html_content, 'html.parser')
-    # Consider relevant elements such as div, p, title, etc.
     relevant_tags = ['div', 'p', 'title', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6']
     layout_blocks = []
     for tag in relevant_tags:
-        elements = soup.find_all(tag)
-        layout_blocks.extend([(tag, element.get_text()) for element in elements])
+        for element in soup.find_all(tag):
+            text = element.get_text(strip=True)
+            attrs = {attr: element[attr] for attr in element.attrs if attr in ['class', 'id', 'style']}
+            layout_blocks.append((tag, attrs, text))
     return layout_blocks
 
-
-
 def compute_similarity(block1, block2):
-    # Compute similarity between two layout blocks using edit distance
-    # Here, we use difflib's SequenceMatcher to compute similarity ratio
-    return SequenceMatcher(None, block1, block2).ratio()
+    tag1, attrs1, text1 = block1
+    tag2, attrs2, text2 = block2
+    if tag1 != tag2:
+        return 0
 
-def cluster_pages(pages):
+    # Convert attribute dictionaries into a sorted list of tuples with immutable values
+    def convert_attrs(attrs):
+        # Convert each attribute value to a tuple if it's a list or keep it as is if it's immutable
+        return tuple((k, tuple(v) if isinstance(v, list) else v) for k, v in sorted(attrs.items()))
+
+    attrs1_tuple = convert_attrs(attrs1)
+    attrs2_tuple = convert_attrs(attrs2)
+
+    # Now compute the similarity using these tuples
+    attrs_similarity = SequenceMatcher(None, attrs1_tuple, attrs2_tuple).ratio()
+    text_similarity = SequenceMatcher(None, text1, text2).ratio()
+    return (attrs_similarity + text_similarity) / 2
+
+def cluster_pages(blocks):
     clusters = []
-    for page in pages:
-        found_cluster = False
+    for block in blocks:
+        matched = False
         for cluster in clusters:
-            # Compute similarity with pages in the cluster
-            similarities = [compute_similarity(page, p) for p in cluster]
-            avg_similarity = sum(similarities) / len(similarities)
-            if avg_similarity > 0.7:  # Adjust threshold as needed
-                cluster.append(page)
-                found_cluster = True
+            if all(compute_similarity(block, member) > 0.8 for member in cluster):
+                cluster.append(block)
+                matched = True
                 break
-        if not found_cluster:
-            clusters.append([page])
+        if not matched:
+            clusters.append([block])
     return clusters
 
-
-def generate_wrapper(cluster):
-    # Generate a human-readable wrapper based on a cluster of layout blocks
-    wrapper = {}
-    for i, (tag, block) in enumerate(cluster, start=1):
-        wrapper[f'{tag}'] = {
-            'Text': block,
-        }
-    return wrapper
-
+def generate_wrapper(clusters):
+    wrappers = []
+    for cluster in clusters:
+        pattern = str()
+        for tag, attrs, text in cluster:
+            selector = f'{tag}' + ''.join(f'[{k}="{v}"]' for k, v in attrs.items())
+        wrappers.append(selector)
+    return wrappers
 
 def webstemmer(file1, encoding1, file2, encoding2):
-    # Parse HTML files and extract layout blocks
-    text_page1 = parse_html(file1, encoding1)
-    text_page2 = parse_html(file2, encoding2)
-    blocks_page1 = extract_layout_blocks(text_page1)
-    blocks_page2 = extract_layout_blocks(text_page2)
+    html1 = parse_html(file1, encoding1)
+    html2 = parse_html(file2, encoding2)
+    blocks1 = extract_layout_blocks(html1)
+    blocks2 = extract_layout_blocks(html2)
 
-    # Combine text and layout blocks for clustering
-    pages = blocks_page1 + blocks_page2
+    all_blocks = blocks1 + blocks2
+    clusters = cluster_pages(all_blocks)
+    wrappers = generate_wrapper(clusters)
+    print(json.dumps(wrappers, indent=4, ensure_ascii=False))
 
-    # Cluster pages based on layout structure
-    clusters = cluster_pages(pages)
-
-    # Print clusters
-    for i, cluster in enumerate(clusters):
-        # Generate wrapper for the cluster
-        wrapper = generate_wrapper(cluster)
-        print(f"Wrapper {i}:")
-        print(wrapper)
-
-webstemmer("./webpages/rtvslo.si/rtvslo-1.html", "utf-8", "./webpages/rtvslo.si/rtvslo-2.html", "utf-8")
+# webstemmer("./webpages/rtvslo.si/rtvslo-1.html", "utf-8", "./webpages/rtvslo.si/rtvslo-2.html", "utf-8")
