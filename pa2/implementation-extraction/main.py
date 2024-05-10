@@ -134,10 +134,10 @@ def extract_kosarka_regex(html_file):
     print(json.dumps(data, indent=4))
 
 
-# extract_rtv_regex(open("./webpages/rtvslo.si/rtvslo-2.html", "r", encoding="utf-8"))
-# extract_overstock_regex(open("./webpages/overstock.com/jewelry01.html", "r", encoding="latin-1"))
-# extract_24ur_regex(open("./webpages/24ur.com/novica2.html", "r", encoding="utf-8"))
-# extract_kosarka_regex(open("./webpages/kosarka.si/novica1.html", "r", encoding="utf-8"))
+# extract_rtv_regex(open("./input-extraction/rtvslo.si/rtvslo-2.html", "r", encoding="utf-8"))
+# extract_overstock_regex(open("./input-extraction/overstock.com/jewelry01.html", "r", encoding="latin-1"))
+# extract_24ur_regex(open("./input-extraction/24ur.com/novica2.html", "r", encoding="utf-8"))
+# extract_kosarka_regex(open("./input-extraction/kosarka.si/novica1.html", "r", encoding="utf-8"))
 
 
 # xPath extarctions
@@ -239,10 +239,10 @@ def extract_kosarka_xpath(html_file):
     print(json.dumps(data, indent=4))
 
 
-# extract_rtv_xpath(open("./webpages/rtvslo.si/rtvslo-2.html", "r", encoding="utf-8"))
-# extract_overstock_xpath(open("./webpages/overstock.com/jewelry02.html", "r", encoding="latin-1"))
-# extract_24ur_xpath(open("./webpages/24ur.com/novica2.html", "r", encoding="utf-8"))
-# extract_kosarka_xpath(open("./webpages/kosarka.si/novica1.html", "r", encoding="utf-8"))
+# extract_rtv_xpath(open("./input-extraction/rtvslo.si/rtvslo-2.html", "r", encoding="utf-8"))
+# extract_overstock_xpath(open("./input-extraction/overstock.com/jewelry02.html", "r", encoding="latin-1"))
+# extract_24ur_xpath(open("./input-extraction/24ur.com/novica2.html", "r", encoding="utf-8"))
+# extract_kosarka_xpath(open("./input-extraction/kosarka.si/novica1.html", "r", encoding="utf-8"))
 
 
 # PART 3
@@ -252,7 +252,7 @@ def parse_html(file_name, encoding='utf-8'):
 
 def extract_layout_blocks(html_content):
     soup = BeautifulSoup(html_content, 'html.parser')
-    relevant_tags = ['div', 'p', 'title', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6']
+    relevant_tags = ['div', 'p', 'title', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'th', 'tr', 'td']
     layout_blocks = []
     for tag in relevant_tags:
         for element in soup.find_all(tag):
@@ -285,7 +285,7 @@ def cluster_pages(blocks):
     for block in blocks:
         matched = False
         for cluster in clusters:
-            if all(compute_similarity(block, member) > 0.8 for member in cluster):
+            if all(compute_similarity(block, member) > 0.003 for member in cluster):
                 cluster.append(block)
                 matched = True
                 break
@@ -296,7 +296,6 @@ def cluster_pages(blocks):
 def generate_wrapper(clusters):
     wrappers = []
     for cluster in clusters:
-        pattern = str()
         for tag, attrs, text in cluster:
             selector = f'{tag}' + ''.join(f'[{k}="{v}"]' for k, v in attrs.items())
         wrappers.append(selector)
@@ -313,4 +312,6 @@ def webstemmer(file1, encoding1, file2, encoding2):
     wrappers = generate_wrapper(clusters)
     print(json.dumps(wrappers, indent=4, ensure_ascii=False))
 
-# webstemmer("./webpages/rtvslo.si/rtvslo-1.html", "utf-8", "./webpages/rtvslo.si/rtvslo-2.html", "utf-8")
+webstemmer("./../input-extraction/rtvslo.si/rtvslo-1.html", "utf-8", "./../input-extraction/rtvslo.si/rtvslo-2.html", "utf-8")
+# webstemmer("./input-extraction/overstock.com/jewelry01.html", "latin-1", "./input-extraction/overstock.com/jewelry02.html", "latin-1")
+# webstemmer("./input-extraction/24ur.com/novica1.html", "utf-8", "./input-extraction/24ur.com/novica2.html", "utf-8")
