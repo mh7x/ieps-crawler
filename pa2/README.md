@@ -57,4 +57,4 @@ The project structure is as follows:
 - 'wepbages/': Directory containing pre-rendered HTML web pages for testing.
 
 ## Authors
-[Tadej Lenart, ]
+[Nejc Rihter, Tadej Lenart in Tomaž Sagaj]
