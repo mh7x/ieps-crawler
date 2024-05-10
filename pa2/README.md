@@ -23,7 +23,7 @@ pip install lxml beautifulsoup4 scikit-learn
 
 ## Running the Code
 1. Clone this repository to you local machine
-2. Navigate to the project directory.
+2. Navigate to pa2/implementation-extraction.
 3. Run the script 'run-extraction.py' with the desired algorithm type as the argument. For example:
 
 ```bash
@@ -37,19 +37,22 @@ The extracted data will be printed to the standard output for all the web pages 
 ## File Structure
 The project structure is as follows:
 
-```arduino
+```plaintext
 .
-├── README.md
-├── main.py
-├── run-extraction.py
-└── webpages/
-    ├── rtvslo.si/
-    ├── overstock.com/
-    ├── 24ur.com/
-    └── kosarka.si/
+├── pa2/
+│   ├── README.md
+│   ├── report-extraction.pdf
+│   ├── implementation-extraction/
+│   │   ├── main.py
+│   │   └── run-extraction.py
+│   └── input-extraction/
+│       ├── rtvslo.si/
+│       ├── overstock.com/
+│       ├── 24ur.com/
+│       └── kosarka.si/
 ```
 
-- 'main.py': Contains te implementations of the extraction methods.
+- 'main.py': Contains the implementations of the extraction methods.
 - 'run-extraction.py': Script to run and test the extraction methods.
 - 'wepbages/': Directory containing pre-rendered HTML web pages for testing.
 
